@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+
+# Copyright 2010-2020 Noah Sussman New Media, LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -o errexit -o nounset -o pipefail
+
+test -z "${GITHUB_TOKEN-}" \
+    && echo "ERROR: You must set the GITHUB_TOKEN environment variable!" \
+    && exit 1
+
+if [ -z "${3-}" ]
+then
+  echo "Usage: $(basename "${0-}") <how long ago> <org name> <search query>"
+  exit 1
+fi
+
+# Bind parameters to variables
+
+export how_long_ago=${1}
+export organization_name=${2}
+export github_search_query=${3}
+
+# Assert the start date is a valid date string
+
+date -d "$how_long_ago" > /dev/null
+
+# Configuration
+
+export artifacts_dir="opt/data"
+export log_dir="opt/logs"
+
+# Constants
+
+export extracted_facts="$artifacts_dir/facts"
+export ingest_github="$artifacts_dir/ingestion/github/$organization_name"
+export search_github="$ingest_github/search/facets"
+
+# Predeclare strings
+
+export cursor=''
+export cursor_command=''
+export output_path=''
+export output_file=''
+export date_of_output_file=''
+export previous_download=''
+export start_date=''
+export end_date=''
+
+# Initialize pagination counter
+
+export page_number=1
+
+# Main program starts here
+
+start_date=$(date --iso=s -d "$how_long_ago")
+
+end_date=$(date --iso=s -d now)
+
+date_of_output_file=$(date --iso -d "$start_date")
+
+output_path="$ingest_github/search/pages/$date_of_output_file"
+
+output_file="$output_path/$page_number.json"
+
+test -d "$artifacts_dir" \
+    && rm -r "$artifacts_dir"
+
+test -d "$log_dir" \
+    && rm -r "$log_dir"
+
+mkdir -p "$artifacts_dir"
+
+mkdir -p "$output_path"
+
+mkdir -p "$log_dir"
+
+while [ "$cursor" != "null" ]
+do
+
+    echo "$(date --iso=s): INFO: Getting GitHub search results page: $page_number" >> $log_dir/info.log
+
+    graphql_query=$(envsubst < lib/repo_search.gql)
+
+    graphql_query_with_newlines_removed=$(echo "$graphql_query" \
+        | perl -lwpe 's{\s*}{ };' \
+        | tr -d "\\n")
+
+    echo "$(date --iso=s): DEBUG: Running GraphQL Query: $graphql_query_with_newlines_removed" >> $log_dir/debug.log
+
+    curl \
+        -L \
+        -s \
+        -o "$output_file" \
+        -H "Authorization: bearer $GITHUB_TOKEN"  \
+        -H  "Content-Type:application/json" \
+        -H "Accept: application/vnd.github.vixen-preview+json" \
+        -X POST \
+        -d "{\"query\": \"$graphql_query_with_newlines_removed\"}" \
+        'https://api.github.com/graphql'
+
+    if [ -f "$output_file" ]; then
+
+        echo "$(date --iso=s): INFO:  Saved remote document as: $output_file" >> $log_dir/info.log
+
+        jq -e 'decant("edges")[] | length == 0' "$output_file" > /dev/null \
+           && (echo "$(date --iso=s): ERROR: No results for search!"; exit 1)
+
+        jq -e '.errors == null' "$output_file" > /dev/null \
+            || (echo "$(date --iso=s): ERROR: Saved remote document is an error page!" \
+                    && exit 1)
+
+        cursor=$(jq -e --raw-output \
+                    'pluck("endCursor") | .[0][]' \
+                    "$output_file")
+
+        jq -e 'decant("hasNextPage")[] == false' "$output_file" > /dev/null \
+           && break
+
+        cursor_command="after: \\\"$cursor\\\","
+
+        page_number=$(( page_number + 1 ))
+
+        output_file="$output_path/$page_number.json"
+
+    fi
+
+    sleep 1
+
+done
+
+mkdir -p "$artifacts_dir/facts"
+
+# shellcheck disable=SC2046
+jq -e --slurp --sort-keys \
+   'map(.data.search.edges
+       | map(.node))
+       | flatten' \
+    $(find "opt/data/ingestion/github/$organization_name/search/pages"/**/*.json | sort -V) \
+    > "$artifacts_dir/facts/result.json"
+
+echo
+
+echo "Search results saved in ./$artifacts_dir/facts"
