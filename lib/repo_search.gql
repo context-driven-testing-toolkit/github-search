@@ -1,0 +1,58 @@
+query {
+  rateLimit {
+    limit
+    cost
+    remaining
+    resetAt
+  },
+  search(
+    type: ISSUE,
+    query: \"
+
+        org:$organization_name
+
+        updated:$start_date..$end_date
+
+        sort:updated-desc
+
+        $github_search_query
+    \",
+    $cursor_command
+    first: 10
+  ) {
+    issueCount
+    edges {
+      node {
+        ... on PullRequest {
+
+          repository{name}
+          number
+          title
+          url
+
+          mergedBy{resourcePath}
+
+          createdAt
+          mergedAt
+          closedAt
+          baseRef{name}
+          commits{
+            totalCount
+          }
+          changedFiles
+          mergeCommit{oid}
+        }
+      }
+    },
+    pageInfo {
+      hasNextPage
+      endCursor
+    },
+  }
+  rateLimit {
+    limit
+    cost
+    remaining
+    resetAt
+  },
+}
