@@ -39,6 +39,7 @@ date -d "$how_long_ago" > /dev/null
 # Configuration
 
 export artifacts_dir="opt/data"
+export log_dir="opt/logs"
 
 # Constants
 
@@ -76,16 +77,16 @@ output_file="$output_path/$page_number.json"
 test -d "$artifacts_dir" \
     && rm -r "$artifacts_dir"
 
-test -d "$artifacts_dir" \
-    || mkdir -p "$artifacts_dir"
+mkdir -p "$artifacts_dir"
 
-test -d "$output_path" \
-    || mkdir -p "$output_path"
+mkdir -p "$output_path"
+
+mkdir -p "$log_dir"
 
 while [ "$cursor" != "null" ]
 do
 
-    echo "$(date --iso=s): INFO: Getting GitHub search results page: $page_number"  >> opt/log/info.log
+    echo "$(date --iso=s): INFO: Getting GitHub search results page: $page_number" >> $log_dir/info.log
 
     graphql_query=$(envsubst < lib/repo_search.gql)
 
@@ -93,7 +94,7 @@ do
         | perl -lwpe 's{\s*}{ };' \
         | tr -d "\\n")
 
-    echo "$(date --iso=s): DEBUG: Running GraphQL Query: $graphql_query_with_newlines_removed" >> opt/log/debug.log
+    echo "$(date --iso=s): DEBUG: Running GraphQL Query: $graphql_query_with_newlines_removed" >> $log_dir/debug.log
 
     curl \
         -L \
@@ -108,7 +109,7 @@ do
 
     if [ -f "$output_file" ]; then
 
-        echo "$(date --iso=s): INFO:  Saved remote document as: $output_file"
+        echo "$(date --iso=s): INFO:  Saved remote document as: $output_file" >> $log_dir/info.log
 
         jq -e 'decant("edges")[] | length == 0' "$output_file" > /dev/null \
            && (echo "$(date --iso=s): ERROR: No results for search!"; exit 1)
@@ -152,4 +153,4 @@ libexec/analyze "$artifacts_dir/facts/result.json"
 
 echo
 
-echo "Search results saved as ./$artifacts_dir/facts/result.json"
+echo "Search results saved in ./$artifacts_dir/facts"
