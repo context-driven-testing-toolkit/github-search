@@ -32,6 +32,7 @@ query {
 
           mergedBy{resourcePath}
 
+          updatedAt
           createdAt
           mergedAt
           closedAt
