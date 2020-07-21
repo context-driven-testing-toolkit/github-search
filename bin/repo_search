@@ -106,8 +106,7 @@ do
         -d "{\"query\": \"$graphql_query_with_newlines_removed\"}" \
         'https://api.github.com/graphql'
 
-    if [ -f "$output_file" ]
-    then
+    if [ -f "$output_file" ]; then
 
         echo "$(date --iso=s): INFO:  Saved remote document as: $output_file"
 
@@ -139,6 +138,7 @@ done
 
 mkdir -p "$artifacts_dir/facts"
 
+# shellcheck disable=SC2046
 jq -e --slurp --sort-keys \
    'map(.data.search.edges
        | map(.node))
@@ -148,6 +148,8 @@ jq -e --slurp --sort-keys \
 
 echo
 
-jq -er '@text "\(length) pull requests matched your search."' $artifacts_dir/facts/result.json
+libexec/analyze "$artifacts_dir/facts/result.json"
+
+echo
 
 echo "Search results saved as ./$artifacts_dir/facts/result.json"

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+set -o errexit -o nounset -o pipefail
+
+if [ -z "${1-}" ]
+then
+  echo "Usage: $(basename "${0-}") <path>"
+  exit 1
+fi
+
+jq -er '@text "\(length) pull requests matched your search."' "$1"
+
+jq -er 'map(decant("baseRef")[][]) | unique | @text "\(length) repositories matched."' "$1"
+
+jq -er 'map(decant("resourcePath")[]) | unique | @text "\(length) authors matched."' "$1"
