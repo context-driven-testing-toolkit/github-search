@@ -11,7 +11,6 @@ to `.jq` and place it in your `$HOME` directory:
 
     cp stdlib.jq ~/.jq
 
-
 # How to use it
 
 You have to put in the organization as a separate argument. Otherwise

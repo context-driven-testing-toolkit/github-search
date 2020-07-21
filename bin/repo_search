@@ -85,7 +85,7 @@ test -d "$output_path" \
 while [ "$cursor" != "null" ]
 do
 
-    echo "$(date --iso=s): INFO: Getting GitHub search results page: $page_number"
+    echo "$(date --iso=s): INFO: Getting GitHub search results page: $page_number"  >> opt/log/info.log
 
     graphql_query=$(envsubst < lib/repo_search.gql)
 
@@ -93,7 +93,7 @@ do
         | perl -lwpe 's{\s*}{ };' \
         | tr -d "\\n")
 
-    echo "$(date --iso=s): DEBUG: Running GraphQL Query: $graphql_query_with_newlines_removed"
+    echo "$(date --iso=s): DEBUG: Running GraphQL Query: $graphql_query_with_newlines_removed" >> opt/log/debug.log
 
     curl \
         -L \
