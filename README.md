@@ -18,7 +18,7 @@ any valid GitHub search query should work.
 
 For instance:
 
-    repo_search '10 days ago' 'my-organization' 'is:merged'
+    bin/repo_search '10 days ago' 'my-organization' 'is:merged'
 
 Would find all repos merged since 10 days ago.
 
