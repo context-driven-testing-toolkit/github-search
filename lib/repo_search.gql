@@ -18,7 +18,7 @@ query {
         $github_search_query
     \",
     $cursor_command
-    first: 10
+    first: 100
   ) {
     issueCount
     edges {
