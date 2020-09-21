@@ -77,6 +77,9 @@ output_file="$output_path/$page_number.json"
 test -d "$artifacts_dir" \
     && rm -r "$artifacts_dir"
 
+test -d "$log_dir" \
+    && rm -r "$log_dir"
+
 mkdir -p "$artifacts_dir"
 
 mkdir -p "$output_path"
